@@ -1,0 +1,14 @@
+steps:
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['dataproc', 'jobs', 'submit', 'pyspark',
+           '--cluster=anz-dataproc-cluster',
+           '--region=us-central1',
+           '--py-files=gs://anz-spark-jobs/dependencies.zip',
+           'gs://anz-spark-jobs/transform_transactions.py']
+    
+  - name: 'gcr.io/cloud-builders/terraform'
+    args: ['apply', '-auto-approve']
+    dir: 'infra'
+    
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', 'dags/*.py', 'gs://anz-composer/dags/']
