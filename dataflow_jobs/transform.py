@@ -15,18 +15,19 @@ def run(argv=None):
          | 'ReadFromGCS' >> beam.io.ReadFromParquet(known_args.input)
          | 'FilterValid' >> beam.Filter(lambda x: x['status'] == 'SUCCESS')
          | 'EnrichData' >> beam.Map(lambda x: {
-             'transaction_id': x['transaction_id'],
-             'amount': float(x['amount']),
-             'date': x['transaction_date'].split('T')[0]
-             # Add other fields
+            'transaction_id': x['transaction_id'],
+            'terminal_id': x['terminal_id'],
+            'customer_id': x['customer_id'],
+            'amount': float(x['amount']),
+            'currency': x['currency'],
+            'status': x['status'],
          })
          | 'WriteToBQ' >> beam.io.WriteToBigQuery(
-             known_args.output,
-             schema='transaction_id:STRING,amount:FLOAT,date:DATE',
-             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
-        )
+            known_args.output,
+            schema='transaction_id:STRING,terminal_id:STRING,customer_id:STRING,amount:FLOAT,currency:STRING,status:STRING',
+            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
+         )
 
 if __name__ == '__main__':
     run()
-
