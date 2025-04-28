@@ -32,9 +32,9 @@ with DAG('dataflow_elt',
                     "maxWorkers": 10,
 		    "temp_location": "gs://anz-dataflow-temp/tmp/"
                 },
-        "projectId": "{{ dag_run.conf.get('project_id', params['project_id']) }}",
-        "region": "{{ params['region'] }}"
-	}
+	        "projectId": "{{ dag_run.conf.get('project_id', params['project_id']) }}",
+        	"region": "{{ params['region'] }}"
+	   }
 	},
 	location="us-central1"
     )
