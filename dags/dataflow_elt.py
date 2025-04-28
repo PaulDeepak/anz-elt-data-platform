@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2023, 1, 1),
+    'start_date': datetime(2025, 5, 10),
     'retries': 3,
     'retry_delay': timedelta(minutes=5),
     'project_id': 'anz-data-platform',
@@ -14,15 +14,15 @@ default_args = {
 }
 
 with DAG('dataflow_elt',
-         schedule_interval='@daily',
-         default_args=default_args,
-         catchup=False) as dag:
+          schedule_interval='@daily',
+          default_args=default_args,
+          catchup=False) as dag:
 
     process_transactions = DataflowStartFlexTemplateOperator(
         task_id="process_transactions",
         template_file_gcs_path="gs://dataflow-templates/latest/flex/Python_Parquet_To_BigQuery",
         parameters={
-            'input': f'gs://anz-raw-data-$(gcloud config get-value project)/transactions/date={{{{ ds }}}}/data.parquet',
+            'input': 'gs://anz-raw-data-anz-data-platform/transactions/transactions.parquet/transaction_date={{ ds }}',
             'output': 'anz_analytics.fact_transactions'
         },
         location="us-central1",
@@ -36,3 +36,4 @@ with DAG('dataflow_elt',
             'temp_location': 'gs://anz-dataflow-temp/tmp/'
         }
     )
+
