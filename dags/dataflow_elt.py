@@ -31,11 +31,11 @@ with DAG('dataflow_elt',
                     "numWorkers": 2,
                     "maxWorkers": 10,
 		    "temp_location": "gs://anz-dataflow-temp/tmp/"
-                }
-            }
-        },
-        location="us-central1",
+                },
         project="{{ dag_run.conf.get('project_id', params['project_id']) }}",
         region="{{ params.region }}"
+	}
+	},
+	location="us-central1"
     )
 
