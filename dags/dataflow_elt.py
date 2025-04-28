@@ -29,19 +29,13 @@ with DAG('dataflow_elt',
                 },
                 "environment": {
                     "numWorkers": 2,
-                    "maxWorkers": 10
+                    "maxWorkers": 10,
+		    "temp_location": "gs://anz-dataflow-temp/tmp/"
                 }
             }
         },
         location="us-central1",
-        flex_template_environment_variables={
-            'num_workers': '2',
-            'max_workers': '10'
-        },
-        dataflow_default_options={
-            'project': '{{ dag_run.conf["project_id"] or params.project_id }}',
-            'region': '{{ params.region }}',
-            'temp_location': 'gs://anz-dataflow-temp/tmp/'
-        }
+        project="{{ dag_run.conf["project_id"] or params.project_id }}",
+        region="{{ params.region }}"
     )
 
