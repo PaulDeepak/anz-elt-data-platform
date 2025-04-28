@@ -1,33 +1,42 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-import argparse
+
+# Define the BigQuery table schema
+schema = 'transaction_id:STRING,terminal_id:STRING,customer_id:STRING,amount:FLOAT,currency:STRING,status:STRING,transaction_date:DATE'
+
+# Function to extract and format the data
+def format_data(element):
+    return {
+        'transaction_id': element['transaction_id'],
+        'terminal_id': element['terminal_id'],
+        'customer_id': element['customer_id'],
+        'amount': float(element['amount']),
+        'currency': element['currency'],
+        'status': element['status'],
+        'transaction_date': element['transaction_date']
+    }
+
+# Function to filter for successful transactions
+def is_success(element):
+    return element['status'] == 'SUCCESS'
 
 def run(argv=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--input', required=True, help='GCS path to transactions')
-    parser.add_argument('--output', required=True, help='BigQuery table')
-    known_args, pipeline_args = parser.parse_known_args(argv)
-
-    options = PipelineOptions(pipeline_args)
-
-    with beam.Pipeline(options=options) as p:
-        (p
-         | 'ReadFromGCS' >> beam.io.ReadFromParquet(known_args.input)
-         | 'FilterValid' >> beam.Filter(lambda x: x['status'] == 'SUCCESS')
-         | 'EnrichData' >> beam.Map(lambda x: {
-            'transaction_id': x['transaction_id'],
-            'terminal_id': x['terminal_id'],
-            'customer_id': x['customer_id'],
-            'amount': float(x['amount']),
-            'currency': x['currency'],
-            'status': x['status'],
-         })
-         | 'WriteToBQ' >> beam.io.WriteToBigQuery(
-            known_args.output,
-            schema='transaction_id:STRING,terminal_id:STRING,customer_id:STRING,amount:FLOAT,currency:STRING,status:STRING',
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
-         )
+    """Main entry point; defines and runs the pipeline."""
+    options = PipelineOptions()
+    with beam.Pipeline(options=options) as pipeline:
+        (
+            pipeline
+            | 'ReadFromParquet' >> beam.io.ReadFromParquet('data/transactions.parquet/*/*')
+            | 'FilterSuccess' >> beam.Filter(is_success)
+            | 'EnrichData' >> beam.Map(format_data)
+            | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
+                table='anz-data-platform:anz_macroeconomics.fact_macroeco',
+                schema=schema,
+                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            )
+        )
 
 if __name__ == '__main__':
     run()
