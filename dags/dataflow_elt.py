@@ -35,7 +35,7 @@ with DAG('dataflow_elt',
             }
         },
         location="us-central1",
-        project="{{ dag_run.conf["project_id"] or params.project_id }}",
+        project="{{ dag_run.conf.get('project_id', params['project_id']) }}",
         region="{{ params.region }}"
     )
 
