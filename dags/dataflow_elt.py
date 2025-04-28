@@ -21,9 +21,17 @@ with DAG('dataflow_elt',
     process_transactions = DataflowStartFlexTemplateOperator(
         task_id="process_transactions",
         template_file_gcs_path="gs://dataflow-templates/latest/flex/Python_Parquet_To_BigQuery",
-        parameters={
-            'input': 'gs://anz-raw-data-anz-data-platform/transactions/transactions.parquet/transaction_date={{ ds }}',
-            'output': 'anz_analytics.fact_transactions'
+        body={
+            "launch_flex_template": {
+                "parameters": {
+                    "input": "gs://anz-raw-data-anz-data-platform/transactions/transactions.parquet/transaction_date={{ ds }}",
+                    "output": "anz_analytics.fact_transactions"
+                },
+                "environment": {
+                    "numWorkers": 2,
+                    "maxWorkers": 10
+                }
+            }
         },
         location="us-central1",
         flex_template_environment_variables={
