@@ -6,29 +6,24 @@ import os
 def generate_data():
     """
     Generates synthetic transaction and macroeconomic data, mimicking the bank's requirements.
-
-    Data Locations:
-    - transaction data: stored in a date-partitioned Parquet format, simulating daily loads from an on-premise system.
-    - macroeconomics data: stored in a CSV format, simulating monthly loads from an external vendor.
     """
     # 1. Transaction Data (Daily - mimicking on-premise source)
-    num_transactions_per_day = 10000  # Reduced for demonstration
+    num_transactions_per_day = 1000  # Reduced for demonstration
     num_days = 21
-    num_terminals = 500  # Reduced number of terminals.
-    num_customers = 10000 # Reduced number of customers
+    num_terminals = 500
+    num_customers = 1000
 
     end_date = datetime.today()
     dates = pd.date_range(end=end_date, periods=num_days).date
     terminals = [f"TERM_{i:05d}" for i in range(1, num_terminals + 1)]
-    customers = [f"CUST_{i:08d}" for i in range(1, num_customers+1)]
+    customers = [f"CUST_{i:08d}" for i in range(1, num_customers + 1)]
 
     # Create a list to hold daily DataFrames
     daily_dataframes = []
 
     for i, transaction_date in enumerate(dates):
-        #create the datafram
         transactions_data = {
-            "transaction_id": [f"TXN_{i*num_transactions_per_day + j:010d}" for j in range(1, num_transactions_per_day + 1)],
+            "transaction_id": [f"TXN_{i * num_transactions_per_day + j:010d}" for j in range(1, num_transactions_per_day + 1)],
             "terminal_id": np.random.choice(terminals, num_transactions_per_day),
             "customer_id": np.random.choice(customers, num_transactions_per_day),
             "amount": np.round(np.random.lognormal(mean=3, sigma=0.5, size=num_transactions_per_day), 2),
@@ -39,7 +34,6 @@ def generate_data():
         daily_df = pd.DataFrame(transactions_data)
         daily_dataframes.append(daily_df)
 
-    # Concatenate all daily dataframes into a single DataFrame
     transactions_df = pd.concat(daily_dataframes, ignore_index=True)
 
     # 2. Macroeconomics Data (Monthly - mimicking external vendor)
@@ -56,17 +50,11 @@ def generate_data():
     economics = pd.DataFrame(economics_data)
 
     # 3. Save the data
-    # Create the data directory if it doesn't exist
     os.makedirs("data", exist_ok=True)
-
-    # Save transaction data, partitioned by date
     transactions_df.to_parquet("data/transactions.parquet", partition_cols=["transaction_date"])
-
-    # Save economics data
     economics.to_csv("data/economics.csv", index=False)
 
     print("Data files (transactions.parquet, economics.csv) have been generated in the data/ directory.")
 
 if __name__ == "__main__":
     generate_data()
-
