@@ -30,7 +30,7 @@ with DAG('dataflow_elt',
                 "environment": {
                     "numWorkers": 2,
                     "maxWorkers": 10,
-		    "temp_location": "gs://anz-dataflow-temp/tmp/"
+		    "tempLocation": "gs://anz-dataflow-temp/tmp/"
                 },
 	        "projectId": "{{ dag_run.conf.get('project_id', params['project_id']) }}",
         	"region": "{{ params['region'] }}"
