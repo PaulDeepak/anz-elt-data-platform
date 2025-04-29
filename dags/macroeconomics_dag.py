@@ -31,23 +31,23 @@ with DAG(
     tags=['macroeconomic']
 ) as dag:
     
-    # 1. Check for new files in your existing bucket
+    # 1. Check for new files
     list_macro_files = GCSListObjectsOperator(
         task_id='list_macro_files',
         bucket='anz-macroeconomics-data',
-        prefix='macro_source/',  # Vendor will upload here
+        prefix='macro_source/',
         delimiter='.csv',
         gcp_conn_id='google_cloud_default'
     )
     
-    # 2. Validate file (checks existence and selects latest)
+    # 2. Validate file
     validate_file = PythonOperator(
         task_id='validate_file',
         python_callable=_validate_macro_data,
         provide_context=True
     )
     
-    # 3. Load to BigQuery with schema validation
+    # 3. Load to BigQuery (fixed version)
     load_to_bq = GCSToBigQueryOperator(
         task_id='load_to_bq',
         bucket='anz-macroeconomics-data',
@@ -67,10 +67,8 @@ with DAG(
             'type': 'MONTH',
             'field': 'month'
         },
-        additional_options={
-            'allow_jagged_rows': True,
-            'allow_quoted_newlines': True
-        }
+        allow_quoted_newlines=True,  # Moved from additional_options
+        allow_jagged_rows=True       # Moved from additional_options
     )
     
     list_macro_files >> validate_file >> load_to_bq
