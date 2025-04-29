@@ -1,18 +1,12 @@
 from airflow import DAG
 from airflow.providers.google.cloud.operators.dataflow import DataflowStartFlexTemplateOperator
-from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 from datetime import datetime, timedelta
 
 default_args = {
     'owner': 'airflow',
-    'depends_on_past': False,
     'start_date': datetime(2025, 4, 29),
     'retries': 3,
-    'retry_delay': timedelta(minutes=5),
-    'project_id': 'anz-data-platform',
-    'region': 'us-central1',
-    'on_failure_callback': lambda context: print("Alert! Pipeline failed"),
-    'retry_exponential_backoff': True
+    'retry_delay': timedelta(minutes=5)
 }
 
 with DAG('dataflow_elt',
@@ -27,18 +21,8 @@ with DAG('dataflow_elt',
             "input": "gs://anz-raw-data-anz-data-platform/transactions/transactions.parquet/transaction_date={{ ds }}",
             "output": "anz_analytics.fact_transactions${{ ds_nodash }}",
             "worker_machine_type": "n1-standard-4",
-            "num_workers": 2,
-            "max_workers": 10
+            "num_workers": "2",
+            "max_workers": "10"
         },
-        location="us-central1",
-        wait_until_finished=False
+        location="us-central1"
     )
-
-    monitor_job = DataflowJobStatusSensor(
-    task_id="monitor_job",
-    job_id="{{ task_instance.xcom_pull(task_ids='process_transactions')['job_id'] }}",
-    expected_statuses={"JOB_STATE_DONE"},
-    location="us-central1"
-)
-
-process_transactions >> monitor_job
