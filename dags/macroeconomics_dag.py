@@ -7,7 +7,7 @@ import tempfile
 
 with DAG(
     'macroeconomics_ingestion',
-    start_date=datetime(2025, 5, 1),
+    start_date=datetime(2025, 4, 29),
     schedule_interval='@monthly',
     catchup=False
 ) as dag:
