@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2025, 5, 10),
+    'start_date': datetime(2025, 4, 29),
     'retries': 3,
     'retry_delay': timedelta(minutes=5),
     'project_id': 'anz-data-platform',
