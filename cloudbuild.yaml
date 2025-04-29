@@ -1,14 +1,43 @@
 steps:
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['dataproc', 'jobs', 'submit', 'pyspark',
-           '--cluster=anz-dataproc-cluster',
-           '--region=us-central1',
-           '--py-files=gs://anz-spark-jobs/dependencies.zip',
-           'gs://anz-spark-jobs/transform_transactions.py']
-    
+  # 1. Deploy infrastructure
+  - name: 'gcr.io/cloud-builders/terraform'
+    args: ['init']
+    dir: 'infra'
+    id: 'terraform-init'
+
   - name: 'gcr.io/cloud-builders/terraform'
     args: ['apply', '-auto-approve']
     dir: 'infra'
-    
+    id: 'terraform-apply'
+    waitFor: ['terraform-init']
+
+  # 2. Deploy Dataflow template
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['dataflow', 'flex-template', 'build',
+          'gs://${_DATAFLOW_TEMPLATES_BUCKET}/parquet-to-bq.json',
+          '--image=gcr.io/dataflow-templates/latest/flex/Python_Parquet_To_BigQuery',
+          '--sdk-language=PYTHON']
+    env:
+      - '_DATAFLOW_TEMPLATES_BUCKET=anz-dataflow-templates-${PROJECT_ID}'
+    waitFor: ['terraform-apply']
+
+  # 3. Deploy Spark job
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['dataproc', 'jobs', 'submit', 'pyspark',
+          '--cluster=anz-dataproc-cluster',
+          '--region=us-central1',
+          '--py-files=gs://${_SPARK_JOBS_BUCKET}/dependencies.zip',
+          'gs://${_SPARK_JOBS_BUCKET}/transform_transactions.py']
+    env:
+      - '_SPARK_JOBS_BUCKET=anz-spark-jobs-${PROJECT_ID}'
+    waitFor: ['terraform-apply']
+
+  # 4. Deploy DAGs
   - name: 'gcr.io/cloud-builders/gsutil'
-    args: ['cp', 'dags/*.py', 'gs://anz-composer/dags/']
+    args: ['-m', 'cp', '-r', 'dags/*', 'gs://${_COMPOSER_DAGS_BUCKET}/']
+    env:
+      - '_COMPOSER_DAGS_BUCKET=anz-composer-dags-${PROJECT_ID}'
+    waitFor: ['terraform-apply']
+
+options:
+  substitution_option: 'ALLOW_LOOSE'
