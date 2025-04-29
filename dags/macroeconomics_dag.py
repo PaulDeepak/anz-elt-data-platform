@@ -1,7 +1,7 @@
 from airflow import DAG
 from airflow.providers.http.operators.http import HttpOperator
-from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.operators.python import PythonOperator
 from datetime import datetime
 import tempfile
 
@@ -25,7 +25,7 @@ with DAG(
     # 2. Save to temporary file
     def save_response_to_file(**context):
         response = context['ti'].xcom_pull(task_ids='fetch_macro_data')
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.txt', delete=False) as tmp:
             tmp.write(response)
             return tmp.name
     
