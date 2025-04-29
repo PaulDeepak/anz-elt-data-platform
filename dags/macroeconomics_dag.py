@@ -1,49 +1,76 @@
 from airflow import DAG
-from airflow.providers.http.operators.http import HttpOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.providers.google.cloud.operators.gcs import GCSListObjectsOperator
 from airflow.operators.python import PythonOperator
-from datetime import datetime
-import tempfile
+from datetime import datetime, timedelta
+import logging
+
+default_args = {
+    'owner': 'airflow',
+    'start_date': datetime(2025, 4, 29),
+    'retries': 3,
+    'retry_delay': timedelta(minutes=5)
+}
+
+def _validate_macro_data(**context):
+    """Validate the macroeconomic CSV file before processing"""
+    file_list = context['ti'].xcom_pull(task_ids='list_macro_files')
+    if not file_list:
+        raise ValueError("No macroeconomic data file found in GCS bucket")
+    
+    # Get most recent file (assuming pattern: macro_YYYYMM.csv)
+    latest_file = sorted(file_list)[-1]  
+    logging.info(f"Processing macroeconomic file: {latest_file}")
+    return latest_file
 
 with DAG(
     'macroeconomics_ingestion',
-    start_date=datetime(2025, 4, 29),
     schedule_interval='@monthly',
-    catchup=False
+    default_args=default_args,
+    catchup=False,
+    tags=['macroeconomic']
 ) as dag:
     
-    # 1. Fetch data from HTTP endpoint
-    fetch_macro_data = HttpOperator(
-        task_id='fetch_macro_data',
-        http_conn_id='http_local',
-        endpoint='keyword_sheetcopy.txt',
-        method='GET',
-        response_filter=lambda response: response.text,
-        dag=dag
-    )
-    
-    # 2. Save to temporary file
-    def save_response_to_file(**context):
-        response = context['ti'].xcom_pull(task_ids='fetch_macro_data')
-        with tempfile.NamedTemporaryFile(mode='w+', suffix='.txt', delete=False) as tmp:
-            tmp.write(response)
-            return tmp.name
-    
-    create_temp_file = PythonOperator(
-        task_id='create_temp_file',
-        python_callable=save_response_to_file,
-        provide_context=True,
-        dag=dag
-    )
-    
-    # 3. Upload to GCS
-    upload_to_gcs = LocalFilesystemToGCSOperator(
-        task_id='upload_to_gcs',
-        src="{{ ti.xcom_pull(task_ids='create_temp_file') }}",
-        dst='macroeconomics/keyword_sheetcopy_{{ ds }}.txt',
+    # 1. Check for new files in your existing bucket
+    list_macro_files = GCSListObjectsOperator(
+        task_id='list_macro_files',
         bucket='anz-macroeconomics-data',
-        gcp_conn_id='google_cloud_default',
-        dag=dag
+        prefix='macro_source/',  # Vendor will upload here
+        delimiter='.csv',
+        gcp_conn_id='google_cloud_default'
     )
     
-    fetch_macro_data >> create_temp_file >> upload_to_gcs
+    # 2. Validate file (checks existence and selects latest)
+    validate_file = PythonOperator(
+        task_id='validate_file',
+        python_callable=_validate_macro_data,
+        provide_context=True
+    )
+    
+    # 3. Load to BigQuery with schema validation
+    load_to_bq = GCSToBigQueryOperator(
+        task_id='load_to_bq',
+        bucket='anz-macroeconomics-data',
+        source_objects=["{{ ti.xcom_pull(task_ids='validate_file') }}"],
+        destination_project_dataset_table='anz_analytics.macro_economic_indicators',
+        schema_fields=[
+            {"name": "month", "type": "DATE", "mode": "REQUIRED"},
+            {"name": "cash_rate", "type": "FLOAT64", "mode": "NULLABLE"},
+            {"name": "unemployment_rate", "type": "FLOAT64", "mode": "NULLABLE"},
+            {"name": "cpi", "type": "FLOAT64", "mode": "NULLABLE"},
+            {"name": "processing_date", "type": "TIMESTAMP", "mode": "NULLABLE"}
+        ],
+        source_format='CSV',
+        skip_leading_rows=1,
+        write_disposition='WRITE_TRUNCATE',
+        time_partitioning={
+            'type': 'MONTH',
+            'field': 'month'
+        },
+        additional_options={
+            'allow_jagged_rows': True,
+            'allow_quoted_newlines': True
+        }
+    )
+    
+    list_macro_files >> validate_file >> load_to_bq
