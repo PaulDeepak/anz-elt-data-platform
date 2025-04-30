@@ -12,19 +12,19 @@ Two parallel pipelines processing:
 flowchart TD
     subgraph Macro[Monthly Macroeconomic Pipeline]
         direction TB
-        B1[Vendor SFTP\n• 100MB/month\n• CSV files] -->|Monthly Upload| B2[GCS Landing Zone\n• gs://anz-macroeconomics]
-        B2 --> B3[Cloud Composer\n• Monthly Trigger]
-        B3 --> B4[BigQuery Load\n• Schema Validation]
-        B4 --> B5[BigQuery\n• macro_indicators\n• Month-partitioned]
+        B1[Vendor SFTP • 100MB/month • CSV files] -->|Monthly Upload| B2[GCS Landing Zone • gs://anz-macroeconomics]
+        B2 --> B3[Cloud Composer • Monthly Trigger]
+        B3 --> B4[BigQuery Load • Schema Validation]
+        B4 --> B5[BigQuery • macro_indicators • Month-partitioned]
         B5 --> B6[Reporting Dashboards]
     end
 
     subgraph Transaction[Daily Transaction Pipeline]
         direction TB
-        A1[On-Prem UNIX Server\n• 25GB/day\n• 21-day window] -->|SFTP/Storage Transfer| A2[GCS Raw Zone\n• gs://anz-raw-data]
-        A2 --> A3[Cloud Composer\n• Daily Trigger]
-        A3 --> A4[Dataflow Job\n• Parquet→BigQuery]
-        A4 --> A5[BigQuery\n• fact_transactions\n• Date-partitioned]
+        A1[On-Prem UNIX Server • 25GB/day • 21-day window] -->|SFTP/Storage Transfer| A2[GCS Raw Zone • gs://anz-raw-data]
+        A2 --> A3[Cloud Composer • Daily Trigger]
+        A3 --> A4[Dataflow Job • Parquet→BigQuery]
+        A4 --> A5[BigQuery • fact_transactions • Date-partitioned]
         A5 --> A6[Data Science Team]
     end
 
